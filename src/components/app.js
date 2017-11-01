@@ -1,31 +1,53 @@
 import React from 'react'
+import config from 'src/config/firebase'
+import firebase from 'firebase'
 import { observer } from 'mobx-react'
-import stores from 'src/stores'
-import styled from 'styled-components'
 
-const BlueText = styled.h1`
-  color: blue;
-`
+const IDLE = 'IDLE'
+const UPLOADING = 'UPLOADING'
+const DONE = 'DONE'
 
 @observer
 class App extends React.Component {
 
-  increase = () => {
-    stores.counter.increase()
+  constructor(props) {
+    super(props)
+    this.initFirebase()
+    this.state = {
+      downloadUrl: '',
+      state: IDLE
+    }
   }
-  
-  decrease = () => {
-    stores.counter.decrease()
+
+  initFirebase = () => {
+    const firebaseApp = firebase.initializeApp(config)
+    this.storage = firebaseApp.storage()
   }
-  
+
+  handleOnChange = (event) => {
+    const file = event.target.files[0]
+    this.setState({ state: UPLOADING })
+    this.storage.ref(`images/${file.name}`).put(file)
+      .then(snapshot => {
+        this.setState({
+          downloadUrl: snapshot.downloadURL,
+          state: DONE
+        })
+      })
+  }
+
   render() {
     return (
-      <div>
-        <BlueText>Counter game wih mobx</BlueText>
+      <div className='container'>
+        <input type="file" onChange={this.handleOnChange} />
         <div>
-          <button onClick={this.decrease}>-</button>
-          <span>{stores.counter.number}</span>
-          <button onClick={this.increase}>+</button>
+          {this.state.state === UPLOADING && <p>Uploading...</p>}
+          {this.state.state === DONE && (
+            <div>
+              <a href={this.state.downloadUrl}>{this.state.downloadUrl}</a>
+              <img className='img-responsive w-100' src={this.state.downloadUrl} alt="" />
+            </div>
+          )}
         </div>
       </div>
     )
